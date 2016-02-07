@@ -1,0 +1,226 @@
+---
+title: 'Reproducible Research: Assignment Week 1'
+output:
+
+ md_document:
+  variant: markdown_github
+ html_document:
+  toc: yes
+  number_sections: true
+  highlight: tango
+
+---
+
+```{r , echo=TRUE , warning=FALSE}
+library(knitr)
+library("lattice")
+```
+
+
+# Import Data
+
+I imported the following data that was uploaded from the following [location](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip) on February 9th, 2016.
+
+```{r import data , echo=TRUE }
+raw_data <- read.csv("activity.csv")
+#View(activity)
+```
+
+# What is mean total number of steps taken per day?
+
+As per the assignment, the missing values can be ignored ...  *"For this part of the assignment, you can ignore the missing values in the dataset."*
+
+```{r remove step na , echo=TRUE }
+##Resulting data set below excludes missing data
+data_for_this_section = raw_data[complete.cases(raw_data),]
+```
+
+
+##  Calculate the total number of steps taken per day
+
+```{r number of steps per day , echo=TRUE }
+##Calculate summation by grouping by date
+data_=with(data_for_this_section , aggregate(steps , by=list(Date=date) , FUN=sum ) )
+##Rename column to reflect data within
+colnames(data_)[2]="TotalNumberOfStep"
+##Create table
+kable( data_ )
+```
+
+## Make a histogram of the total number of steps taken each day
+
+```{r histo number of steps per day , echo=TRUE }
+##create histogram of TotalNumberOfStep = data_[,2]
+hist( data_[,2] , xlab = "Number of Steps per Day" , main = "Histogram of the Number of Steps Taken per Day" )
+```
+
+## Calculate and report the mean and median of the total number of steps taken per day
+
+### Mean of the total number of steps taken per day
+
+```{r mean , echo=TRUE }
+##set numeric resolution to two decimals. Makes data pretty and prevents scientifics
+options(scipen=2)
+##calculate means
+MeanValue=mean(data_[,2])
+##print statement that incorporates the answer to question 
+print(paste0("The **mean value** of the total number of steps taken each day is ", MeanValue , " ."))
+```
+
+The **mean value** of the total number of steps taken each day is `r MeanValue`. 
+
+### Median of the total number of steps taken per day
+
+```{r median , echo=TRUE }
+##calculate median 
+MedianValue=median(data_[,2])
+print(paste0("The **median value** of the total number of steps taken each day is ", MedianValue , " .")) 
+```
+
+The **median value** of the total number of steps taken each day is `r MedianValue`.
+
+# What is the average daily activity pattern?
+
+
+## Make a time series plot (i.e. 𝚝𝚢𝚙𝚎 = "𝚕") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+```{r plot time series , echo=TRUE }
+##work will complete (non-na) data
+data_for_this_section = raw_data[complete.cases(raw_data),]
+##Calculate means by interval
+data_=with(data_for_this_section , aggregate(steps , by=list(Interval=interval) , FUN=mean ) )
+colnames(data_)[2]="AverageNumberOfStepPerInterval"
+#data_for_this_section = subset(data_for_this_section , interval==5 )
+with(data_ , plot( Interval , AverageNumberOfStepPerInterval , type="l" , main=("The average number of steps taken, by 5-minute interval") ) )
+
+```
+
+## Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r max number of steps , echo=TRUE }
+#sort by Average Step Interval descending
+data2_=head(data_[order(-data_$AverageNumberOfStepPerInterval),] , n=1 )
+#create table
+kable(data2_)
+#print statement
+print(paste0("The following interval **",data2_$Interval, "** has the maximum number of steps, whose average across all days is **", data2_$AverageNumberOfStepPerInterval ,"** ."))
+```
+
+The following interval **`r data2_$Interval `** has the maximum number of steps, whose average across all days is **`r data2_$AverageNumberOfStepPerInterval `** .
+
+# Imputing missing values
+
+## Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with 𝙽𝙰s)
+
+```{r keep na , echo=TRUE }
+#create incomplete table
+data_with_na = raw_data[!complete.cases(raw_data),]
+#print statement
+print(paste0("The number of missing values is the dataset is  **",nrow(data_with_na), "**."))
+```
+The number of missing values is the dataset is  **`r nrow(data_with_na)` **.
+
+##Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+The strategy I deviced was to use the median value of the existing data at the interval, to fill up the missing data.
+
+```{r imput na with median , echo=TRUE }
+#create complete table
+data_complete = raw_data[complete.cases(raw_data),]
+#calculate median by interval from complete data
+data_median =with(data_complete , aggregate(steps , by=list(Interval=interval) , FUN=median ) )
+#merge incomplete data with median data 
+data_merge=merge(x=data_with_na , y=data_median , by.x="interval" , by.y="Interval" , all=FALSE )
+#set incomplete(na) steps as equal median
+data_merge$steps=data_merge$x
+```
+
+## Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r create imput data , echo=TRUE }
+#create table with imputted data
+data_merge=data_merge[,1:3]
+#merge complete data with imputted data
+data_imput=rbind(data_complete, data_merge )
+```
+
+
+## Make a histogram of the total number of steps taken each day with imputted data 
+
+```{r number of steps per day imput , echo=TRUE }
+#sum by date of complete imputted data
+data_=with( data_imput , aggregate(steps , by=list(Date=date) , FUN=sum ) )
+colnames(data_)[2]="TotalNumberOfStep"
+#create histogram
+hist( data_[,2] , xlab = "Number of Steps per Day" , main = "Histogram of the Number of Steps Taken per Day (Imputted)" )
+```
+
+## Calculate and report the mean total number of steps taken per day with imputted data 
+
+```{r mean imput , echo=TRUE }
+##set numeric resolution to two decimals. Makes data pretty and prevents scientifics
+options(scipen=2)
+MeanValue_imput=mean(data_[,2])
+print(paste0("The **mean value** of the total number of steps taken each day is ", MeanValue_imput , " ."))
+```
+
+The **mean value** of the total number of steps taken each day is `r MeanValue_imput`. 
+
+
+## Calculate and report the median total number of steps taken per day with imputted data 
+
+
+```{r median imput , echo=TRUE }
+MedianValue_imput=median(data_[,2])
+print(paste0("The **median value** of the total number of steps taken each day is ", MedianValue_imput , " .")) 
+```
+
+The **median value** of the total number of steps taken each day is `r MedianValue_imput`.
+
+## Do these values differ from the estimates from the first part of the assignment?
+
+### means
+
+Yes they do differ. 
+
+Before imputting the mean was `r MeanValue`. 
+After imputting, the mean value is `r MeanValue_imput`
+
+### median 
+
+Yes they do differ. 
+
+Before imputting the median was `r MedianValue`. 
+After imputting, the median value is `r MedianValue_imput`
+
+
+## What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+Based on the method that I selected i.e. using the median to imput missing values, both the mean value and the median value seem to decrease.
+
+
+# Are there differences in activity patterns between weekdays and weekends?
+
+
+## Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
+```{r weekday , echo=TRUE }
+#logic to determine if a day is a weekend or a weekday. 
+data_imput$Weekend=ifelse(weekdays( as.Date(data_imput$date) )=="Saturday" | weekdays( as.Date(data_imput$date) )=="Sunday" , "Weekend" , "Weekday")
+##validation code below to confirm that the above procedure is correct
+#unique(paste ( weekdays( as.Date(data_imput$date) ) , data_imput$Weekend))
+
+```
+
+## Make a panel plot containing a time series plot (i.e. 𝚝𝚢𝚙𝚎 = "𝚕") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r weekday plot , echo=TRUE }
+#calculate mean by Weekend and interval
+data_=with( data_imput , aggregate(steps , by=list(Weekend, interval) , FUN=mean ) )
+colnames(data_)[1]="PartOfWeek"
+colnames(data_)[2]="Interval"
+colnames(data_)[3]="AverageNumberOfSteps"
+#create plot
+xyplot(AverageNumberOfSteps ~ Interval | factor(PartOfWeek), data=data_, pch=19,main="Number of Step vs Interaval, By Part of Week", xlab="Interval",  ylab="Average Number of Steps",layout=c(1,2), type="l" )
+```
+
+
+
